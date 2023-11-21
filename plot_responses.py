@@ -31,16 +31,8 @@ rec709_trc = np.where(lin_codes < 0.081, lin_codes/4.5, np.power((lin_codes+0.09
 responses = {}
 for fn in npyFiles:
     (bn,ext) = fn.split('.')
-    if(bn not in ['cine2', 'slog2']):
-        responses[bn] = np.reshape(np.load(fn)[0:254,:,1],254)
-        responses[bn] /= np.amax(responses[bn])
-        responses[bn] *= srgb_trc[253]
-        plt.plot(to_srgb(responses[bn]), lin_codes[0:254], label=bn)
-    elif(bn == 'slog2'):
-        responses[bn] = np.reshape(np.load(fn)[0:252,:,1],252)
-        responses[bn] /= np.amax(responses[bn])
-        responses[bn] *= srgb_trc[251]
-        plt.plot(to_srgb(responses[bn]), lin_codes[0:252], label=bn)
+    responses[bn] = np.load(fn)
+    plt.plot(to_srgb(responses[bn]), lin_codes, label=bn)
 
 
 
@@ -76,5 +68,14 @@ plt.title('Effective Tone Curve applied after sRGB encoding')
 plt.xlabel('Input value')
 plt.ylabel('Output value')
 
+plt.legend()
+
+plt.figure()
+for bn in responses.keys():
+    plt.plot(np.log2(responses[bn]), label=bn)
+
+plt.title('Camera response (EV from clip)')
+plt.xlabel('Code value')
+plt.ylabel('EV response')
 plt.legend()
 plt.show()
