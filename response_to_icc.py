@@ -44,7 +44,7 @@ if(handle_end_discon):
 
 #Peak at 1.0
 response_mono /= np.amax(response_mono)
-
+response_mono = np.repeat(response_mono[np.newaxis,:],3)
 response_mono = response_mono.astype(np.float32)
 
 #FIXME:  Don't hardcode to sRGB primaries and whitepoint
