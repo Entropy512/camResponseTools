@@ -41,10 +41,12 @@ def merge_robertson(images, times, response, minv, maxv, weights):
 
     for j in range(len(sorted_idx)):
         idx = sorted_idx[j]
-        w = weights[images[idx]]
-        im = response[images[idx]]
-        resimg += times[idx]*w*im
-        wsum += jnp.power(times[idx],2.0)*w
+        img = images[idx]
+        exptime = times[idx]
+        w = weights[img]
+        im = response[img]
+        resimg += exptime*w*im
+        wsum += jnp.power(exptime,2.0)*w
 
         #print("Merged image " + str(time_idx))
     return resimg/(wsum + jnp.finfo(wsum.dtype).eps)
