@@ -34,7 +34,7 @@ def robertson_weights(minv, maxv, nsteps):
     return fweights
 
 @jax.jit
-def merge_robertson(images, times, response, weights):
+def merge_robertson(images, times, response, minv, maxv, weights):
     resimg = jnp.zeros(images.shape[1:])
     wsum = jnp.zeros(images.shape[1:])
     sorted_idx = np.argsort(times)
@@ -67,7 +67,7 @@ def calibrate_robertson(images, times, init_response, maxiter = 30, threshold = 
     for j in jnp.arange(maxiter):
         weights = robertson_weights(minv, maxv, len(response))
         #plt.plot(weights)
-        radiance = merge_robertson(images, times, response, weights)
+        radiance = merge_robertson(images, times, response, minv, maxv, weights)
         print("calculated radiance for iteration " + str(j+1))
         new_response = jnp.zeros(len(response))
 
