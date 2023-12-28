@@ -106,7 +106,6 @@ def calibrate_robertson(images, times, init_response, maxiter = 30, threshold = 
         new_response /= card
         #iso_reg = IsotonicRegression().fit(np.arange(len(new_response)), new_response)
         #new_response = iso_reg.predict(np.arange(len(new_response)))
-        #new_response = np.maximum.accumulate(new_response)
 
         r_spline = splrep(np.arange(len(new_response[minv:maxv+1])), np.log2(new_response[minv:maxv+1]), s=np.sqrt((maxv-minv)/2))
         smoothed = splev(np.arange(len(new_response[minv:maxv+1])), r_spline, der=0)
@@ -121,13 +120,18 @@ def calibrate_robertson(images, times, init_response, maxiter = 30, threshold = 
 
             weights = np.zeros(len(new_response))
             weights[minv:maxv] = inv_smth_der[:-1]
-        new_response = np.zeros(len(new_response))
-        new_response[minv:maxv+1] = np.power(2,smoothed)
-        new_response[:minv] = new_response[minv]
-        new_response[maxv:] = new_response[maxv]
+        if(0):
+            new_response = np.zeros(len(new_response))
+            new_response[minv:maxv+1] = np.power(2,smoothed)
+        new_response = new_response.at[:minv].set(new_response[minv])
+        new_response = new_response.at[maxv:].set(new_response[maxv])
+        #new_response = np.maximum.accumulate(new_response)
         #interpolator = scipy.interpolate.PchipInterpolator(np.arange(len(new_response)), np.log2(new_response))
         #new_response = np.power(2,interpolator(np.arange(len(new_response))))
-        new_response /= jnp.amax(new_response)
+        if(0):
+            new_response /= jnp.amax(new_response)
+        else:
+            new_response /= new_response[int(len(response)/2)]
         diff = jnp.sum(abs(np.log2(response/new_response)))
         print(diff)
         if(0):
