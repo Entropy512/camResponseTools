@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 import glob
 from fractions import Fraction
 
-jpegFiles = glob.glob('capture_*.jpg')
-
 def from_srgb(x):
     return np.where(x < 0.04045, x/12.92, np.power((x+0.055)/1.055, 2.4))
 
@@ -149,10 +147,25 @@ nsteps = 2**nbits
 
 robertson_images = []
 robertson_times = []
+
+my_capture = 0
+if(my_capture):
+    jpegFiles = glob.glob('capture_*.jpg')
+else:
+    # to prep xphase files extracted with unpackORI, first
+    # remove any 0-byte files (only applies to xphase scan)
+    # then combined using ImageMagick's montage.  Eventually I'll find a good way to tile these here
+    # for j in 0 1 2; do rm combined_$j.jpg; montage -border 0 -geometry +0+0 -tile 10x3 *_$j.jpg combined_$j.jpg; done
+    jpegFiles = glob.glob('combined_?.jpg')
+
 for fn in jpegFiles:
     (bn,ext) = fn.split('.')
-    (garbage, num, den) = bn.split('_')
-    exptime = Fraction(int(num),int(den))
+    if(my_capture): #my tool
+        (garbage, num, den) = bn.split('_')
+        exptime = Fraction(int(num),int(den))
+    else:
+        (garbage, idx) = bn.split('_')
+        exptime = np.power(2.0,(int(idx)-1)*2)  #Assuming 3-shot is still -2,0,+2 EV, absolute exptime doesn't matter only relative
     robertson_images.append(cv2.imread(fn))
     robertson_times.append(float(exptime))
 
