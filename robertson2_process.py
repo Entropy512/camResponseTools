@@ -37,7 +37,12 @@ def robertson_weights(minv, maxv, nsteps):
 def merge_robertson(images, times, response, minv, maxv, weights):
     resimg = jnp.zeros(images.shape[1:])
     wsum = jnp.zeros(images.shape[1:])
-    sorted_idx = np.argsort(times)
+    sorted_idx = jnp.argsort(times)
+
+    minti = jnp.ones(images.shape[1:])*1.0e6
+    maxti = jnp.ones(images.shape[1:])*-1.0e6
+    r_max = response[maxv]
+    r_min = response[minv]
 
     for j in range(len(sorted_idx)):
         idx = sorted_idx[j]
@@ -45,11 +50,33 @@ def merge_robertson(images, times, response, minv, maxv, weights):
         exptime = times[idx]
         w = weights[img]
         im = response[img]
-        resimg += exptime*w*im
-        wsum += jnp.power(exptime,2.0)*w
+        if(j == 0):
+            w = jnp.clip(w, 1e-6, None) # Always give nonzero weight to darkest frame - from LHDR
+        else:
+            # Get the previous (darker) image
+            idx_d = sorted_idx[j-1]
+            img_d = images[idx_d]
+            exptime_d = times[idx_d]
+            # Calculate the expected brightness of this pixel from the darker image.  If it's close to saturation, drop the weight - from LHDR
+            wmod = 1.0 - jnp.power((exptime/exptime_d)*(response[img_d]/r_max), 4.0)
+            wmod = jnp.clip(wmod, 0.0, None)
+            w *= wmod
 
+        # Anti-saturation from LHDR
+        # Find minimum exposure time at which saturation is present,
+        # and maximum exptime where black is present
+        minti = jnp.where(img >= maxv, jnp.clip(minti, None, exptime), minti)
+        maxti = jnp.where(img <= minv, jnp.clip(maxti, exptime, None), maxti)
+
+        resimg += exptime*w*im
+        wsum += exptime*exptime*w
+
+    resimg = jnp.where(jnp.logical_and(wsum == 0.0, maxti > -1.0e6), r_min, resimg)
+    wsum = jnp.where(jnp.logical_and(wsum == 0.0, maxti > -1.0e6), maxti, wsum)
+    resimg = jnp.where(jnp.logical_and(wsum == 0.0, minti < 1.0e6), r_max, resimg)
+    wsum = jnp.where(jnp.logical_and(wsum == 0.0, minti < 1.0e6), minti, wsum)
         #print("Merged image " + str(time_idx))
-    return resimg/(wsum + jnp.finfo(wsum.dtype).eps)
+    return jnp.where(wsum > 0.0, resimg/wsum, 0.0)
 
 def calibrate_robertson(images, times, init_response, maxiter = 30, threshold = 0.01):
     print("Calculating cardinality")
@@ -115,7 +142,7 @@ def calibrate_robertson(images, times, init_response, maxiter = 30, threshold = 
         if(diff < threshold):
             break
 
-    return (response, weights)
+    return (response, minv, maxv, weights)
 
 nbits = 8
 nsteps = 2**nbits
@@ -139,8 +166,8 @@ print(robertson_images.shape)
 
 
 
-(response, weights) = calibrate_robertson(robertson_images, robertson_times, response)
-merged_img = merge_robertson(robertson_images, robertson_times, response, weights)
+(response, minv, maxv, weights) = calibrate_robertson(robertson_images, robertson_times, response)
+merged_img = merge_robertson(robertson_images, robertson_times, response, minv, maxv, weights)
 print(np.amax(merged_img))
 print(np.amin(merged_img))
 np.save('response.npy', response)
